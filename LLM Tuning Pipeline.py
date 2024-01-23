@@ -48,6 +48,8 @@ from mlflow.models import infer_signature
 
 from datetime import datetime
 
+from defaults import get_default_LORA_config, get_default_training_args
+
 
 logger = logging.getLogger(__name__)
 global_config = None
@@ -72,16 +74,16 @@ data = [
         "input": "DUMMY DATA POINT 1",
         "output": {"DUMMY OUTPUT 2": """
                    {
-    "KEY1: 7",
-    "KEY2: bye"
+    "KEY1": "7",
+    "KEY2": "bye"
 }
                    """}    },
     {
         "input": "DUMMY DATA POINT 2",
         "output": {"DUMMY OUTPUT 2": """
                    {
-    "KEY1: 70000",
-    "KEY2: hello"
+    "KEY1": "70000",
+    "KEY2": "hello"
 }
                    """}
     },
@@ -89,8 +91,8 @@ data = [
 
 target_schema_str = """
 {
-    "KEY1: int",
-    "KEY2: str"
+    "KEY1": "int",
+    "KEY2": "str"
 }
 """
 
@@ -128,6 +130,7 @@ for row in data:
     {row['output']}
     """
 
+### INSTEAD OF JSON FILE SAVE, LET'S MAKE THIS A TABLE
 # Save the cleaned data to a new JSON file
 with open('predicted-cleaned.jsonl', 'w') as file:
     json.dump(data, file, indent=4)
@@ -167,27 +170,27 @@ model = prepare_model_for_kbit_training(model)
 
 # COMMAND ----------
 
-lora_config_dict = {
-    "r": 16, # attention heads
-    "lora_alpha": 32, # alpha scaling
-    "target_modules": ["k_proj","o_proj","q_proj","v_proj", "down_proj", "gate_proj", "up_proj"], # based on Lora paper, we want all linear layers
-    "lora_dropout": 0.05,
-    "bias": "none",
-    "task_type": "FEATURE_EXTRACTION",
-}
+# lora_config_dict = {
+#     "r": 16, # attention heads
+#     "lora_alpha": 32, # alpha scaling
+#     "target_modules": ["k_proj","o_proj","q_proj","v_proj", "down_proj", "gate_proj", "up_proj"], # based on Lora paper, we want all linear layers
+#     "lora_dropout": 0.05,
+#     "bias": "none",
+#     "task_type": "FEATURE_EXTRACTION",
+# }
 
-training_args_dict = {
-    "per_device_train_batch_size": 1,
-    "gradient_accumulation_steps": 4,
-    "warmup_steps": 0, # CHANGE MADE HERE
-    "max_steps": 300, # I bumped this down to 100 for PoC, we'll want this up for actual training
-    "learning_rate": 2e-5, # CHANGE MADE HERE
-    "fp16": True, # use mixed precision training (note from og notebook)
-    "logging_steps": 1,
-    "output_dir": "/".join([mlflow_dir, "outputs"]),
-    "optim": "adamw_hf",
-    "save_strategy": "epoch"
-}
+# training_args_dict = {
+#     "per_device_train_batch_size": 1,
+#     "gradient_accumulation_steps": 4,
+#     "warmup_steps": 0, # CHANGE MADE HERE
+#     "max_steps": 300, # I bumped this down to 100 for PoC, we'll want this up for actual training
+#     "learning_rate": 2e-5, # CHANGE MADE HERE
+#     "fp16": True, # use mixed precision training (note from og notebook)
+#     "logging_steps": 1,
+#     "output_dir": "/".join([mlflow_dir, "outputs"]),
+#     "optim": "adamw_hf",
+#     "save_strategy": "epoch"
+# }
 
 # COMMAND ----------
 
@@ -215,7 +218,7 @@ model
 # Define the model class
 class training_model(mlflow.pyfunc.PythonModel):
 
-    def __init__(self, lora_config_dict, training_args_dict, model, tokenizer, signature, train_dataset, eval_dataset):
+    def __init__(self, model, tokenizer, signature, train_dataset, eval_dataset, mlflow_dir, lora_config_dict={}, training_args_dict={}):
         self.lora_config_dict = lora_config_dict
         self.training_args_dict = training_args_dict
         self.model = model
@@ -232,8 +235,23 @@ class training_model(mlflow.pyfunc.PythonModel):
         self.signature = signature
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
+        self.mlflow_dir = mlflow_dir
+        self.augment_with_defaults()
 
-        
+
+    def augment_with_defaults(self):
+        for key, value in get_default_LORA_config().items():
+            if key not in self.lora_config_dict.keys():
+                self.lora_config_dict[key] = value
+
+        for key, value in get_default_training_args().items():
+            if key not in self.training_args_dict.keys():
+                self.training_args_dict[key] = value
+        if 'output_dir' not in self.training_args_dict.keys():
+            self.training_args_dict['output_dir'] = "/".join([self.mlflow_dir, "outputs"])
+                    
+
+
     def predict(self):
         config = LoraConfig(
         r=self.lora_config_dict["r"],
@@ -303,13 +321,14 @@ class training_model(mlflow.pyfunc.PythonModel):
 
 with mlflow.start_run() as run:
     training_model = training_model(
-        lora_config_dict=lora_config_dict,
-        training_args_dict=training_args_dict,
         model=model,
         tokenizer=tokenizer,
         signature=signature,
         train_dataset=train_dataset,
-        eval_dataset=eval_dataset
+        eval_dataset=eval_dataset,
+        mlflow_dir=mlflow_dir,
+        # lora_config_dict=lora_config_dict,
+        # training_args_dict=training_args_dict,
     )
     
     mlflow.log_param("lora_config", training_model.lora_config_dict)
