@@ -1,0 +1,1 @@
+{'AutoConfig': 'TheBloke/stable-code-3b-GPTQ--configuration_stablelm_epoch.StableLMEpochConfig', 'AutoModelForCausalLM': 'TheBloke/stable-code-3b-GPTQ--modeling_stablelm_epoch.StableLMEpochForCausalLM'}

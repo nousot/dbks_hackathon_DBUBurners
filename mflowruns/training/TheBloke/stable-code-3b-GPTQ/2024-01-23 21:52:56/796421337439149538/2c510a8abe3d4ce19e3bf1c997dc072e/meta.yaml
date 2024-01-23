@@ -1,0 +1,16 @@
+artifact_uri: /Workspace/Repos/nicholas@nousot.com/dbks_hackathon_DBUBurners/mflowruns/training/TheBloke/stable-code-3b-GPTQ/2024-01-23
+  21:52:56/796421337439149538/2c510a8abe3d4ce19e3bf1c997dc072e/artifacts
+end_time: 1706046805024
+entry_point_name: ''
+experiment_id: '796421337439149538'
+lifecycle_stage: active
+run_id: 2c510a8abe3d4ce19e3bf1c997dc072e
+run_name: shivering-stag-622
+run_uuid: 2c510a8abe3d4ce19e3bf1c997dc072e
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1706046793825
+status: 4
+tags: []
+user_id: root
