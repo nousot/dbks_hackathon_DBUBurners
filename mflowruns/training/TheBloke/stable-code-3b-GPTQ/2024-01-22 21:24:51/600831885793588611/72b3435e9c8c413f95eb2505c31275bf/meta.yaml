@@ -1,0 +1,16 @@
+artifact_uri: /Workspace/Repos/nicholas@nousot.com/dbks_hackathon_DBUBurners/mflowruns/training/TheBloke/stable-code-3b-GPTQ/2024-01-22
+  21:24:51/600831885793588611/72b3435e9c8c413f95eb2505c31275bf/artifacts
+end_time: 1705960195295
+entry_point_name: ''
+experiment_id: '600831885793588611'
+lifecycle_stage: active
+run_id: 72b3435e9c8c413f95eb2505c31275bf
+run_name: rambunctious-hog-211
+run_uuid: 72b3435e9c8c413f95eb2505c31275bf
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1705960162473
+status: 4
+tags: []
+user_id: root
