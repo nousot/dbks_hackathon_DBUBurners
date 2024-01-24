@@ -1,0 +1,5 @@
+# Environment Variables
+**/*.env
+
+# mlflow files
+**/mlflow_runs
