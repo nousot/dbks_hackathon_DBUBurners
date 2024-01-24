@@ -17,7 +17,6 @@ def get_default_training_args():
         "learning_rate": 2e-5,
         "fp16": True, # use mixed precision training
         "logging_steps": 1,
-        # "output_dir": "/".join([mlflow_dir, "outputs"]),
         "optim": "adamw_hf",
         "save_strategy": "epoch"
     }
