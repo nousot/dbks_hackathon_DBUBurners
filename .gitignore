@@ -2,4 +2,4 @@
 **/*.env
 
 # mlflow files
-**/mlflow_runs
+mlflow_runs/*

@@ -1,0 +1,16 @@
+artifact_uri: /Workspace/Repos/nicholas@nousot.com/dbks_hackathon_DBUBurners/mlflowruns/training/mistralai/Mistral-7B-Instruct-v0.2/2024-01-25
+  17:21:52/939647838266902271/67de558949a24e509c7c6ae5981ecc8c/artifacts
+end_time: 1706203349716
+entry_point_name: ''
+experiment_id: '939647838266902271'
+lifecycle_stage: active
+run_id: 67de558949a24e509c7c6ae5981ecc8c
+run_name: abundant-snail-747
+run_uuid: 67de558949a24e509c7c6ae5981ecc8c
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1706203313576
+status: 4
+tags: []
+user_id: root

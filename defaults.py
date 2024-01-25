@@ -17,6 +17,6 @@ def get_default_training_args():
         "learning_rate": 2e-5,
         "fp16": True, # use mixed precision training
         "logging_steps": 1,
-        "optim": "adamw_hf",
+        "optim": "paged_adamw_8bit", #adamw kept coming up deprecated
         "save_strategy": "epoch"
     }

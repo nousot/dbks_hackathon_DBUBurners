@@ -86,6 +86,9 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
         )
 
         model = get_peft_model(self.model, config)
+        if torch.cuda.device_count() > 1: # If more than 1 GPU
+            model.is_parallelizable = True
+            model.model_parallel = True
 
         ### more params for us to configure and play with
         # https://github.com/huggingface/transformers/blob/main/examples/research_projects/codeparrot/scripts/arguments.py
@@ -99,7 +102,8 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
                 logging_steps=self.training_args_dict['logging_steps'],
                 output_dir=self.training_args_dict['output_dir'],
                 optim=self.training_args_dict['optim'],
-                save_strategy=self.training_args_dict['save_strategy']
+                save_strategy=self.training_args_dict['save_strategy'],
+                ddp_find_unused_parameters=False
         )
 
         sft_trainer_args = {

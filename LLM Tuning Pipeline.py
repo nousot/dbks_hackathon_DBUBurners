@@ -1,6 +1,11 @@
 # Databricks notebook source
 ### we'll need to make our own image and throw these in, rest is covered (so far)
-!pip install rich peft trl auto-gptq optimum
+# !pip install rich peft trl auto-gptq optimum
+
+# COMMAND ----------
+
+### we'll need to make our own image and throw these in, rest is covered (so far)
+!pip install rich peft optimum trl bitsandbytes -U transformers
 
 # COMMAND ----------
 
@@ -12,7 +17,16 @@
 
 # COMMAND ----------
 
-!pip install packaging ninja einops flash-attn==v1.0.9
+# this takes a solid 20 min and does not yield any results
+# !pip install packaging ninja einops flash-attn==v1.0.9
+
+# COMMAND ----------
+
+# !pip install transformers==4.33.1 --upgrade
+
+# COMMAND ----------
+
+!pip list
 
 # COMMAND ----------
 
@@ -25,19 +39,20 @@
 
 # COMMAND ----------
 
+# !export USE_FLASH_ATTENTION=True
+
+# COMMAND ----------
+
 # this restarts the python kernel so the above installs go through
 dbutils.library.restartPython()
 
 # COMMAND ----------
 
 import logging
-import logging
-import torch
 import pandas as pd
 
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, GPTQConfig, GenerationConfig
 # from datasets import Dataset
-import torch
 # from sklearn.model_selection import train_test_split
 
 
@@ -78,7 +93,7 @@ current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 # COMMAND ----------
 
-model_name = 'TheBloke/Llama-2-7B-32K-Instruct-GPTQ'
+model_name = "mistralai/Mistral-7B-Instruct-v0.2"
 
 # COMMAND ----------
 
@@ -218,12 +233,9 @@ training_args_dict = {
 
 # COMMAND ----------
 
-!pip list
-
-# COMMAND ----------
 
 model_setup.mlflow_experiment_id = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-model_setup.mlflow_dir = f'mflowruns/training/{model_name}/{model_setup.mlflow_experiment_id}'
+model_setup.mlflow_dir = f'mlflowruns/training/{model_name}/{model_setup.mlflow_experiment_id}'
 mlflow.set_tracking_uri(model_setup.mlflow_dir)
 
 with mlflow.start_run() as run:

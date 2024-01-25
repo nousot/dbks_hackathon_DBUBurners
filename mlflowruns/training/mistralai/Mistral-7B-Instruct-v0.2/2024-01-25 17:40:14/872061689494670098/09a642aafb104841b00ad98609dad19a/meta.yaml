@@ -1,0 +1,16 @@
+artifact_uri: /Workspace/Repos/nicholas@nousot.com/dbks_hackathon_DBUBurners/mlflowruns/training/mistralai/Mistral-7B-Instruct-v0.2/2024-01-25
+  17:40:14/872061689494670098/09a642aafb104841b00ad98609dad19a/artifacts
+end_time: 1706204444648
+entry_point_name: ''
+experiment_id: '872061689494670098'
+lifecycle_stage: active
+run_id: 09a642aafb104841b00ad98609dad19a
+run_name: whimsical-robin-61
+run_uuid: 09a642aafb104841b00ad98609dad19a
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1706204415743
+status: 4
+tags: []
+user_id: root

@@ -1,0 +1,16 @@
+artifact_uri: /Workspace/Repos/nicholas@nousot.com/dbks_hackathon_DBUBurners/mlflowruns/training/mistralai/Mistral-7B-Instruct-v0.2/2024-01-25
+  17:35:23/949585306688543868/43e8f3c60d07440ba05c9c45435accdc/artifacts
+end_time: 1706204160620
+entry_point_name: ''
+experiment_id: '949585306688543868'
+lifecycle_stage: active
+run_id: 43e8f3c60d07440ba05c9c45435accdc
+run_name: crawling-fawn-162
+run_uuid: 43e8f3c60d07440ba05c9c45435accdc
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1706204125160
+status: 4
+tags: []
+user_id: root

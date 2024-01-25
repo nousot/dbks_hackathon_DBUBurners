@@ -12,9 +12,10 @@ from datasets import Dataset
 from sklearn.model_selection import train_test_split
 from mlflow.models import infer_signature
 
+import torch
 from datetime import datetime
 
-from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, GPTQConfig, GenerationConfig
+from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, GPTQConfig, GenerationConfig, BitsAndBytesConfig
 from peft import prepare_model_for_kbit_training
 
 
@@ -143,14 +144,21 @@ class ModelSetup:
     def prepare_model_and_tokenizer(self, model_name: str = None):
         if model_name is None:
             model_name = self.model_name
-
-        quantization_config = GPTQConfig(bits=4, disable_exllama=False)
-        model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, quantization_config=quantization_config, device_map="cuda",)
+        
+        # quantization_config = GPTQConfig(bits=4, disable_exllama=False)
+        
+        quantization_config = BitsAndBytesConfig(
+            load_in_4bit = True, #enables 4bit quantization
+            bnb_4bit_use_double_quant = False, #repeats quantization a second time if true
+            bnb_4bit_quant_type = 'nf4', #`fp4` or `nf4`
+            bnb_4bit_compute_dtype = torch.bfloat16, #fp dtype, can be changed for speed up
+        )
+        model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, quantization_config=quantization_config, device_map="auto")
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         
         model.config.use_cache = False
         model.config.pretraining_tp = 1
-        model.gradient_checkpointing_enable()
+        model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
         model = prepare_model_for_kbit_training(model)
 
         self.model = model

@@ -1,0 +1,1 @@
+{'max_steps': 10, 'per_device_train_batch_size': 1, 'gradient_accumulation_steps': 4, 'warmup_steps': 0, 'learning_rate': 2e-05, 'fp16': True, 'logging_steps': 1, 'optim': 'paged_adamw_8bit', 'save_strategy': 'epoch', 'output_dir': 'mlflowruns/training/mistralai/Mistral-7B-Instruct-v0.2/2024-01-25 17:43:46/outputs'}

@@ -1,0 +1,16 @@
+artifact_uri: /Workspace/Repos/nicholas@nousot.com/dbks_hackathon_DBUBurners/mlflowruns/training/mistralai/Mistral-7B-Instruct-v0.2/2024-01-25
+  17:54:50/340921015020011892/f64a0d9ba5144b12becc9c6cd483d6d9/artifacts
+end_time: 1706205327965
+entry_point_name: ''
+experiment_id: '340921015020011892'
+lifecycle_stage: active
+run_id: f64a0d9ba5144b12becc9c6cd483d6d9
+run_name: dashing-ox-296
+run_uuid: f64a0d9ba5144b12becc9c6cd483d6d9
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1706205291517
+status: 4
+tags: []
+user_id: root

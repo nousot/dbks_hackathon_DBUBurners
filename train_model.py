@@ -18,8 +18,7 @@ class QuickTrain:
             self.mlflow_dir = "/".join([mlflow_dir, mlflow_experiment_id])
 
     def run_training(self):
-        if self.model_setup is None:
-            model_setup = 
+        model_setup = self.model_setup
         training_model = self.training_model
 
         mlflow.set_tracking_uri(model_setup.mlflow_dir)
