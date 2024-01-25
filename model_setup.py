@@ -20,8 +20,13 @@ from peft import prepare_model_for_kbit_training
 
 
 class ModelSetup:
-    def __init__(self, model_name: str, raw_data: pd.DataFrame, training_data_path: str = None, mlflow_dir: str = None, mlflow_experiment_id: str = None):
+    def __init__(self, model_name: str, raw_data: pd.DataFrame, tokenizer_path: str = None, training_data_path: str = None, mlflow_dir: str = None, mlflow_experiment_id: str = None):
         self.model_name = model_name
+
+        if tokenizer_path is None:
+            self.tokenizer_path = model_name
+        else:
+            self.tokenizer_path = tokenizer_path
 
         if mlflow_experiment_id is None:
             self.mlflow_experiment_id = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -141,10 +146,13 @@ class ModelSetup:
         self.eval_dataset = Dataset.from_pandas(test)
         return self.dataset, self.train_dataset, self.eval_dataset
     
-    def prepare_model_and_tokenizer(self, model_name: str = None):
+    def prepare_model_and_tokenizer(self, model_name: str = None, tokenizer_path: str = None):
         if model_name is None:
             model_name = self.model_name
         
+        if tokenizer_path is None:
+            tokenizer_path = self.tokenizer_path
+
         # quantization_config = GPTQConfig(bits=4, disable_exllama=False)
         
         quantization_config = BitsAndBytesConfig(
@@ -154,7 +162,7 @@ class ModelSetup:
             bnb_4bit_compute_dtype = torch.bfloat16, #fp dtype, can be changed for speed up
         )
         model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, quantization_config=quantization_config, device_map="auto")
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
         
         model.config.use_cache = False
         model.config.pretraining_tp = 1

@@ -93,7 +93,7 @@ current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 # COMMAND ----------
 
-# model_name = "mistralai/Mistral-7B-Instruct-v0.2"
+model_name = "mistralai/Mistral-7B-Instruct-v0.2"
 
 # COMMAND ----------
 
@@ -110,15 +110,13 @@ data = data.drop(columns=["raw", "structured"])
 # COMMAND ----------
 
 import os
-# import mlflow
-# from mlflow.artifacts import download_artifacts
-# mlflow.set_registry_uri('databricks-uc')
-# catalog_name = "databricks_mistral_models" # Default catalog name when installing the model from Databricks Marketplace
-# version = 1
-# model_mlflow_path = f"models:/{catalog_name}.models.mistral_7b_instruct_v0_2/{version}"
-model_local_path = "/mistral_7b_instruct_v0_2/"
-# path = download_artifacts(artifact_uri=model_mlflow_path, dst_path=model_local_path)
-path=model_local_path
+from mlflow.artifacts import download_artifacts
+mlflow.set_registry_uri('databricks-uc')
+catalog_name = "databricks_mixtral_8x7b_model" # Default catalog name when installing the model from Databricks Marketplace
+version = 1
+model_mlflow_path = f"models:/databricks_mixtral_8x7b_model.models.mixtral_8x7b_instruct_v0_1/{version}"
+model_local_path = "/mixtral_8x7b_instruct_v0_1/"
+path = download_artifacts(artifact_uri=model_mlflow_path, dst_path=model_local_path)
 tokenizer_path = os.path.join(path, "components", "tokenizer")
 model_path = os.path.join(path, "model")
 
@@ -128,7 +126,7 @@ model_path = os.path.join(path, "model")
 
 # COMMAND ----------
 
-model_setup = ModelSetup(model_name=model_path, tokenizer_path=tokenizer_path, raw_data=data)
+model_setup = ModelSetup(model_name=model_name, raw_data=data)
 # model_setup.create_training_delta_table() # This works, just gets permissioning error
 model_setup.quickstart() # This compiles all the individual functions that users can also call if they would prefer
 
@@ -262,7 +260,7 @@ training_args_dict = {
 
 
 model_setup.mlflow_experiment_id = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-model_setup.mlflow_dir = f'mlflowruns/training{model_path}{model_setup.mlflow_experiment_id}'
+model_setup.mlflow_dir = f'mlflowruns/training/{model_name}/{model_setup.mlflow_experiment_id}'
 mlflow.set_tracking_uri(model_setup.mlflow_dir)
 
 with mlflow.start_run() as run:
