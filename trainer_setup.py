@@ -61,10 +61,7 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
         self.mlflow_dir = mlflow_dir
-        self.augment_with_defaults()
-
-
-    def augment_with_defaults(self):
+        
         for key, value in get_default_LORA_config().items():
             if key not in self.lora_config_dict.keys():
                 self.lora_config_dict[key] = value
@@ -90,7 +87,6 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
         
         print("Using the following training_args:")
         print(str(self.training_args_dict))
-
 
     def predict(self):
         config = LoraConfig(

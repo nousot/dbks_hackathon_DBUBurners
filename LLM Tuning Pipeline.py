@@ -109,26 +109,26 @@ data = data.drop(columns=["raw", "structured"])
 
 # COMMAND ----------
 
-# import os
-# import mlflow
-# from mlflow.artifacts import download_artifacts
-# mlflow.set_registry_uri('databricks-uc')
-# catalog_name = "databricks_dolly_v2_models" # Default catalog name when installing the model from Databricks Marketplace
-# model_name = "dolly_v2_3b"
-# version = 1
-# model_mlflow_path = f"models:/{catalog_name}.models.{model_name}/{version}"
-# model_local_path = f"/{model_name}/"
-# path = download_artifacts(artifact_uri=model_mlflow_path, dst_path=model_local_path)
-# tokenizer_path = os.path.join(path, "components", "tokenizer")
-# model_path = os.path.join(path, "model")
-
-## for restart post download of model
 import os
+import mlflow
+from mlflow.artifacts import download_artifacts
+mlflow.set_registry_uri('databricks-uc')
+catalog_name = "databricks_dolly_v2_models" # Default catalog name when installing the model from Databricks Marketplace
 model_name = "dolly_v2_3b"
+version = 1
+model_mlflow_path = f"models:/{catalog_name}.models.{model_name}/{version}"
 model_local_path = f"/{model_name}/"
-path=model_local_path
+path = download_artifacts(artifact_uri=model_mlflow_path, dst_path=model_local_path)
 tokenizer_path = os.path.join(path, "components", "tokenizer")
 model_path = os.path.join(path, "model")
+
+## for restart post download of model
+# import os
+# model_name = "dolly_v2_3b"
+# model_local_path = f"/{model_name}/"
+# path=model_local_path
+# tokenizer_path = os.path.join(path, "components", "tokenizer")
+# model_path = os.path.join(path, "model")
 
 # COMMAND ----------
 
@@ -254,7 +254,7 @@ training_args_dict = {
         # "per_device_train_batch_size": 1,
         # "gradient_accumulation_steps": 4,
         # "warmup_steps": 0,
-        "max_steps": 30,
+        "max_steps": 5,
         # "learning_rate": 2e-5,
         # "fp16": True, # use mixed precision training
         # "logging_steps": 1,
@@ -295,25 +295,75 @@ with mlflow.start_run() as run:
     
     # mlflow.log_param("sft_trainer_args", sft_trainer_args)
     mlflow.log_param("output_time", output_time)
+
+
+# COMMAND ----------
+
+from peft import PeftModel
     
-    mlflow.pyfunc.log_model(
+adapters_name = f"mlflowruns/training/{model_name}/model{model_setup.mlflow_experiment_id}/outputs/checkpoint-30/"
+model_to_merge = model_setup.model
+
+# COMMAND ----------
+
+model = PeftModel.from_pretrained(model_to_merge, adapters_name)
+
+model = model.merge_and_unload()
+model.save_pretrained("tuned_models/testing_safe_serial_model")
+
+# COMMAND ----------
+
+import torch
+model = AutoModelForCausalLM.from_pretrained("tuned_models/testing_safe_serial_model")
+tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+
+# COMMAND ----------
+
+inputs = tokenizer("A PAPER ABOUT TESTING: why tests matter. Written on July 10th", return_tensors="pt")
+labels = torch.tensor([1]).unsqueeze(0)  # Batch size 1
+outputs = model(**inputs, labels=labels)
+outputs
+
+# COMMAND ----------
+
+def testModel(input_data):
+    model = PeftModel.from_pretrained()
+
+# COMMAND ----------
+
+mlflow.pyfunc.log_model(
+        artifact_path="merged_adapters/",
         signature=model_setup.signature,
-        artifact_path="/".join([model_setup.mlflow_dir, "logged_model"]),
-        python_model=training_model
+        python_model=model,
+        registered_model_name=f"{model_name}_tuned_{model_setup.mlflow_experiment_id}"
     )
 
-    mlflow.pyfunc.save_model(
-        signature=model_setup.signature,
-        path="/".join([model_setup.mlflow_dir, "saved_model"]),
-        python_model=training_model
-   )
+# COMMAND ----------
 
+# model_to_merge = PeftModel.from_pretrained(AutoModelForCausalLM.from_pretrained(model_path).to("cuda"), adapters_name)
 
 # COMMAND ----------
 
-new_model = "model_fine_tuned_on_DB"
-training_model.model.save_pretrained(new_model)
+merged_model = model_to_merge.merge_and_unload()
 
 # COMMAND ----------
 
-training_model.config.use_cache = True
+# mlflow.pyfunc.save_model(
+#     signature=model_setup.signature,
+#     path=f"/dbfs/DBUBurners_hackathon/tuned_models/{model_name}/{model_setup.mlflow_experiment_id}",
+#     python_model=training_model
+# )
+
+# COMMAND ----------
+
+import inspect
+inspect.signature(merged_model).parameters
+
+# COMMAND ----------
+
+mlflow.pyfunc.log_model(
+        artifact_path="mlflowruns/",
+        # signature=model_setup.signature,
+        python_model=merged_model,
+        registered_model_name=f"{model_name}_tuned_{model_setup.mlflow_experiment_id}"
+    )
