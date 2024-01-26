@@ -5,7 +5,7 @@
 # COMMAND ----------
 
 ### we'll need to make our own image and throw these in, rest is covered (so far)
-!pip install rich peft optimum trl bitsandbytes -U transformers -U safetensors
+!pip install rich peft optimum trl bitsandbytes -U transformers
 
 # COMMAND ----------
 
