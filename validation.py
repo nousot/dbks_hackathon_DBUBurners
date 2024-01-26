@@ -28,6 +28,7 @@ Usage:
 from validation import ComprehensiveDictionaryComparator()
 
 # Weights must sum to 1
+# Recommended values below
 weights = {
     "jaccard_similarity": 0.48,
     "value_similarity": 0.04, #Keyword matching
