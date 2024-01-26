@@ -1,6 +1,7 @@
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from difflib import SequenceMatcher
+from typing import Dict
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
@@ -34,7 +35,7 @@ weights = {
     "similarity_score": 0.48, #PCA
 }
 
-comparator = ComprehensiveDictionaryComparator()
+comparator = ComprehensiveDictionaryComparator(weights)
 results = comparator.compare(input_schema, output_schema)
 print(results)
 ```
@@ -251,16 +252,13 @@ class DictEmbedder:
 class ComprehensiveDictionaryComparator:
     def __init__(
             self,
-            jaccard_similarity: float,
-            value_similarity: float,
-            textual_similarity_seq: float,
-            similarity_score: float,
+            weights: Dict[str, float]
         ):
         self.embedder = DictEmbedder()
-        self.jaccard_similarity = jaccard_similarity
-        self.value_similarity = value_similarity
-        self.textual_similarity_seq = textual_similarity_seq
-        self.similarity_score = similarity_score
+        self.jaccard_similarity = weights.get('jaccard_similarity')
+        self.value_similarity = weights.get('value_similarity')
+        self.textual_similarity_seq = weights.get('textual_similarity_seq')
+        self.similarity_score = weights.get('similarity_score')
 
     def compare(self, input_schema, output_schema, visualize=True, threshold=0.90):
 
