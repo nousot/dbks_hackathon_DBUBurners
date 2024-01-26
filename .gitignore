@@ -2,4 +2,8 @@
 **/*.env
 
 # mlflow files
-mlflowruns/*
+/mlflowruns/*
+/mlflowruns
+/arxiv_pdfs
+mlflowruns
+arxiv_pdfs

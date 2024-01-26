@@ -27,6 +27,8 @@ from trl import SFTTrainer
 from utils import fix_key_names, input_preprocessing
 
 from model_setup import ModelSetup
+import re
+
 
 import mlflow
 import mlflow.sklearn
@@ -67,12 +69,27 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
             if key not in self.lora_config_dict.keys():
                 self.lora_config_dict[key] = value
 
+        if "target_modules" not in self.lora_config_dict.keys():
+            model_modules = str(self.model.modules)
+            pattern = r'\((\w+)\): Linear'
+            linear_layer_names = re.findall(pattern, model_modules)
+            names = []
+            for name in linear_layer_names:
+                names.append(name)
+            target_modules = list(set(names))
+            self.lora_config_dict["target_modules"] = target_modules
+
+        print("Using the following lora config:")
+        print(str(self.lora_config_dict))
+
         for key, value in get_default_training_args().items():
             if key not in self.training_args_dict.keys():
                 self.training_args_dict[key] = value
         if 'output_dir' not in self.training_args_dict.keys():
             self.training_args_dict['output_dir'] = "/".join([self.mlflow_dir, "outputs"])
-                    
+        
+        print("Using the following training_args:")
+        print(str(self.training_args_dict))
 
 
     def predict(self):
@@ -103,7 +120,7 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
                 output_dir=self.training_args_dict['output_dir'],
                 optim=self.training_args_dict['optim'],
                 save_strategy=self.training_args_dict['save_strategy'],
-                ddp_find_unused_parameters=False
+                ddp_find_unused_parameters=self.training_args_dict['ddp_find_unused_parameters']
         )
 
         sft_trainer_args = {
@@ -114,8 +131,8 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
             "peft_config": config,
             "dataset_text_field": "text", # field to tune on
             "tokenizer": self.tokenizer,
-            "packing": False,
-            "max_seq_length": 4096
+            "packing": False, #unsure what this entails
+            "max_seq_length": 100
         }
 
         # link to SFTTrainer args (https://github.com/huggingface/trl/blob/main/trl/trainer/sft_trainer.py)

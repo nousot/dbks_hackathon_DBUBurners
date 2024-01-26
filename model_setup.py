@@ -161,12 +161,12 @@ class ModelSetup:
             bnb_4bit_quant_type = 'nf4', #`fp4` or `nf4`
             bnb_4bit_compute_dtype = torch.bfloat16, #fp dtype, can be changed for speed up
         )
-        model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, quantization_config=quantization_config, device_map="auto")
+        model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, quantization_config=quantization_config, device_map="auto", load_in_4bit=True)
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
         
         model.config.use_cache = False
         model.config.pretraining_tp = 1
-        model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        model.gradient_checkpointing_enable()
         model = prepare_model_for_kbit_training(model)
 
         self.model = model

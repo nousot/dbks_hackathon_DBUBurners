@@ -109,15 +109,23 @@ data = data.drop(columns=["raw", "structured"])
 
 # COMMAND ----------
 
-import os
+# import os
 # import mlflow
 # from mlflow.artifacts import download_artifacts
 # mlflow.set_registry_uri('databricks-uc')
-# catalog_name = "databricks_mistral_models" # Default catalog name when installing the model from Databricks Marketplace
+# catalog_name = "databricks_dolly_v2_models" # Default catalog name when installing the model from Databricks Marketplace
+# model_name = "dolly_v2_3b"
 # version = 1
-# model_mlflow_path = f"models:/{catalog_name}.models.mistral_7b_instruct_v0_2/{version}"
-model_local_path = "/mistral_7b_instruct_v0_2/"
+# model_mlflow_path = f"models:/{catalog_name}.models.{model_name}/{version}"
+# model_local_path = f"/{model_name}/"
 # path = download_artifacts(artifact_uri=model_mlflow_path, dst_path=model_local_path)
+# tokenizer_path = os.path.join(path, "components", "tokenizer")
+# model_path = os.path.join(path, "model")
+
+## for restart post download of model
+import os
+model_name = "dolly_v2_3b"
+model_local_path = f"/{model_name}/"
 path=model_local_path
 tokenizer_path = os.path.join(path, "components", "tokenizer")
 model_path = os.path.join(path, "model")
@@ -246,22 +254,24 @@ training_args_dict = {
         # "per_device_train_batch_size": 1,
         # "gradient_accumulation_steps": 4,
         # "warmup_steps": 0,
-        "max_steps": 10,
+        "max_steps": 30,
         # "learning_rate": 2e-5,
         # "fp16": True, # use mixed precision training
         # "logging_steps": 1,
-        # "optim": "adamw_hf",
+        # "optim": "paged_adamw_8bit", #adamw kept coming up deprecated
         # "save_strategy": "epoch"
+        "ddp_find_unused_parameters": False # defaults to true, not sure what the performance difference is, but can only get it working for us with false across any model
     }
 
 # COMMAND ----------
 
+# you can see this is spiking both temp and space after model load
 !nvidia-smi
 
 # COMMAND ----------
 
 
-model_setup.mlflow_experiment_id = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+# model_setup.mlflow_experiment_id = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 model_setup.mlflow_dir = f'mlflowruns/training{model_path}{model_setup.mlflow_experiment_id}'
 mlflow.set_tracking_uri(model_setup.mlflow_dir)
 
@@ -283,7 +293,7 @@ with mlflow.start_run() as run:
 
     sft_trainer_args, output_time = training_model.predict()
     
-    mlflow.log_param("sft_trainer_args", sft_trainer_args)
+    # mlflow.log_param("sft_trainer_args", sft_trainer_args)
     mlflow.log_param("output_time", output_time)
     
     mlflow.pyfunc.log_model(
@@ -298,3 +308,12 @@ with mlflow.start_run() as run:
         python_model=training_model
    )
 
+
+# COMMAND ----------
+
+new_model = "model_fine_tuned_on_DB"
+training_model.model.save_pretrained(new_model)
+
+# COMMAND ----------
+
+training_model.config.use_cache = True
