@@ -17,6 +17,7 @@ from datetime import datetime
 
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, GPTQConfig, GenerationConfig, BitsAndBytesConfig
 from peft import prepare_model_for_kbit_training
+from accelerate import accelerator
 
 
 class ModelSetup:
@@ -57,6 +58,7 @@ class ModelSetup:
         self.train_dataset = None
         self.eval_dataset = None
 
+        self.base_model = None
         self.model = None
         self.tokenizer = None
 
@@ -161,8 +163,11 @@ class ModelSetup:
             bnb_4bit_quant_type = 'nf4', #`fp4` or `nf4`
             bnb_4bit_compute_dtype = torch.bfloat16, #fp dtype, can be changed for speed up
         )
+
         model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, quantization_config=quantization_config, device_map="auto", load_in_4bit=True)
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+
+        self.base_model = model
         
         model.config.use_cache = False
         model.config.pretraining_tp = 1

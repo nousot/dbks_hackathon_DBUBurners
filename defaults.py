@@ -14,9 +14,10 @@ def get_default_training_args():
         "warmup_steps": 0,
         "max_steps": 300,
         "learning_rate": 2e-5,
-        "fp16": True, # use mixed precision training
+        "fp16": True,
         "logging_steps": 1,
-        "optim": "paged_adamw_8bit", #adamw kept coming up deprecated
+        "optim": "paged_adamw_8bit",
         "save_strategy": "epoch",
-        "ddp_find_unused_parameters": False #generally good but crashes some models
+        "ddp_find_unused_parameters": False,
+        "push_to_hub": False,
     }
