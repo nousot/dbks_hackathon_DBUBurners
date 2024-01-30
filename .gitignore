@@ -1,0 +1,9 @@
+# Environment Variables
+**/*.env
+
+# mlflow files
+/mlflowruns/*
+/mlflowruns
+/arxiv_pdfs
+mlflowruns
+arxiv_pdfs

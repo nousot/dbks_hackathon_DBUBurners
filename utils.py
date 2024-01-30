@@ -44,6 +44,7 @@ def fix_key_names(dict: dict, mappings: dict, direction: str ="schema_to_json"):
     if not dict:
         return None
     
+    
     res = {**dict}
 
     for key, value in mappings.items():
