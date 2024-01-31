@@ -13,24 +13,24 @@ from peft import PeftModel
 
 from transformers import AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer
 import torch
+import shutil
+
 
 class QuickTrain:
-    def __init__(self, base_model_catalog_name: str, base_model_name: str, base_model_version: int, data: pd.DataFrame, dbfs_tuned_model_output_dir: str = None, lora_config_dict = {}, training_args_dict = {}):
+    def __init__(self, base_model_catalog_name: str, base_model_name: str, base_model_version: int, data: pd.DataFrame, dbfs_tuned_adapter_dir: str = None, lora_config_dict = {}, training_args_dict = {}):
         self.base_model_catalog_name = base_model_catalog_name
         self.base_model_name = base_model_name
         self.base_model_version = base_model_version
-        if dbfs_tuned_model_output_dir is None:
+        if dbfs_tuned_adapter_dir is None:
             now = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            self.dbfs_tuned_model_output_dir = f"/dbfs/tuned_models/{self.base_model_name}/{now}/"
+            self.dbfs_tuned_adapter_dir = f"/dbfs/tuned_adapters/{self.base_model_name}/{now}/"
         else:
-            self.dbfs_tuned_model_output_dir = dbfs_tuned_model_output_dir
+            self.dbfs_tuned_adapter_dir = dbfs_tuned_adapter_dir
         self.data = data
-        self.best_model_path = None
+        self.best_adapter_path = None
         self.lora_config_dict = lora_config_dict
         self.training_args_dict = training_args_dict
         self.base_model = None
-
-
 
     def get_model_from_catalog(self, catalog_name: str, model_name: str, version: int):
         mlflow.set_registry_uri('databricks-uc')
@@ -66,10 +66,22 @@ class QuickTrain:
             mlflow.log_param("tokenizer_specs", training_model.tokenizer_specs)
             mlflow.log_param("training_args_dict", training_model.training_args_dict)
 
-            training_model, output_time, best_model_path = training_model.train()
-            self.best_model_path = best_model_path
+            training_model, output_time, best_adapter_path = training_model.train()
+            self.best_adapter_path = best_adapter_path
 
             mlflow.log_param("output_time", output_time)
+
+    def upload_adapter_to_dbfs(self, best_adapter_path: str = None, dbfs_tuned_adapter_dir: str = None):
+        if best_adapter_path is None:
+            best_adapter_path = self.best_adapter_path
+        if dbfs_tuned_adapter_dir is None:
+            dbfs_tuned_adapter_dir = self.dbfs_tuned_adapter_dir
+        
+        shutil.copytree(best_adapter_path, dbfs_tuned_adapter_dir)
+
+        print("You can find your tuned adapter in the following directory on the DBFS")
+        print(dbfs_tuned_adapter_dir)
+        
                 
     def quick_train_model(self):
         base_model_path, base_tokenizer_path = self.get_model_from_catalog(
@@ -88,3 +100,4 @@ class QuickTrain:
         self.tokenizer = model_setup.tokenizer
 
         self.run_training(model_setup = model_setup, base_model_path = base_model_path)
+        self.upload_adapter_to_dbfs(best_adapter_path = self.best_adapter_path, dbfs_tuned_adapter_dir = self.dbfs_tuned_adapter_dir)

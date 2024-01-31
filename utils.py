@@ -1,4 +1,6 @@
 import json
+import re
+import pandas as pd
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -43,8 +45,7 @@ def replace_single_quotes(input_string):
 def fix_key_names(dict: dict, mappings: dict, direction: str ="schema_to_json"):
     if not dict:
         return None
-    
-    
+        
     res = {**dict}
 
     for key, value in mappings.items():
@@ -208,6 +209,55 @@ def input_preprocessing(row, model_name, target_schema_str):
             JSON_SCHEMA: {target_schema_str}
             ---
             TEXT_DATA: {row['input']}
+            ---
+            OUTPUT:
         """
         
     return row
+
+def format_training_data(data: pd.DataFrame, target_mapping: dict[str:str] = {}, model_name: str = "", target_schema_str: str = ""):
+    for index, row in data.iterrows():
+
+        # Update the row with input preprocessing and concatenate text
+        row = input_preprocessing(row, model_name, target_schema_str)
+        data.at[index, 'preprocessed_input'] = row['preprocessed_input']
+
+        if "output" in data.columns:
+
+            row_output_string = str(row['output'])
+
+            ### this needs a try except block and some cleaning maybe
+            modified_string = re.sub(" 'S", "'S", row_output_string)
+            modified_string = re.sub(" nan,", '"None",', modified_string)
+            modified_string = re.sub(r"(?<!\w)'(?!')|(?<!')'(?!\w)", '"', modified_string)
+            modified_string = re.sub(r"\n", ' ', modified_string)
+            modified_string = re.sub(r"/", ' or ', modified_string)
+            modified_string = re.sub(r'""', '"', modified_string)
+
+            try:
+                temp_row_output = json.loads(modified_string)  # Modify data directly
+            except Exception:
+                print("Check your data at the following index, as it is not JSON parsable")
+                print(index)
+                break
+            temp_row_output = fix_key_names(dict=temp_row_output, mappings=target_mapping, direction='json_to_schema')
+            target_schema_dict = {}
+            for key, value in temp_row_output.items():
+                target_schema_dict[key] = str(type(value).__name__)
+
+            target_schema_str = str(target_schema_dict)
+
+            # Update the row with input preprocessing and concatenate text
+            row = input_preprocessing(row, model_name, target_schema_str)
+            data.at[index, 'preprocessed_input'] = row['preprocessed_input']
+
+            # Assign the modified output as a string
+            data.at[index, 'output'] = str(temp_row_output)
+            row['output'] = str(temp_row_output)
+
+            data.at[index, 'text'] = f"""
+            {row['preprocessed_input']}
+            {row['output']}
+            """
+
+    return data

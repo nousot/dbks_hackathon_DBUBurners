@@ -28,7 +28,7 @@ class ModelPostprocessing:
             self.dbfs_tuned_model_output_dir = dbfs_tuned_model_output_dir
             
 
-    def upload_tuned_model_to_dbfs(self):
+    def upload_tuned_adapter_to_dbfs(self):
         quantization_config = BitsAndBytesConfig(
             load_in_4bit = True,
             bnb_4bit_use_double_quant = False,

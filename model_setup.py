@@ -1,5 +1,5 @@
 import pandas as pd
-from utils import input_preprocessing, fix_key_names
+from utils import input_preprocessing, fix_key_names, format_training_data
 import json
 from delta.tables import DeltaTable
 import re
@@ -62,43 +62,13 @@ class ModelSetup:
         self.model = None
         self.tokenizer = None
 
-    def format_training_data(self, data: pd.DataFrame = None, target_mapping: dict[str:str] = {}):
-        for index, row in data.iterrows():
-            try:
-                modified_string = re.sub(r"(?<!\w)'(?!')|(?<!')'(?!\w)", '"', row['output'])
-                data.at[index, 'output'] = json.loads(modified_string)  # Modify data directly
-            except Exception:
-                print("Please ensure your output data is json readable")
-
-            # Applying fix_key_names and updating the DataFrame
-            data.at[index, 'output'] = fix_key_names(dict=row['output'], mappings=target_mapping, direction='json_to_schema')
-
-            target_schema_dict = {}
-            for key, value in data.at[index, 'output'].items():
-                target_schema_dict[key] = str(type(value).__name__)
-
-            target_schema_str = str(target_schema_dict)
-
-            # Assign the modified output as a string
-            data.at[index, 'output'] = str(data.at[index, 'output'])
-
-            # Update the row with input preprocessing and concatenate text
-            row = input_preprocessing(row, self.model_name, target_schema_str)
-            data.at[index, 'preprocessed_input'] = row['preprocessed_input']
-            data.at[index, 'text'] = f"""
-            {row['preprocessed_input']}
-            {row['output']}
-            """
-
-        return data
-
     def create_training_delta_table(self, data: pd.DataFrame = None, target_mapping: dict[str:str] = {}, training_data_path: str = None):
         if data is None:
             data = self.raw_data
         if training_data_path is None:
             training_data_path = self.training_data_path
 
-        data = self.format_training_data(data=data)
+        data = format_training_data(data=data)
         spark = SparkSession.builder.appName("ModelSetup").getOrCreate()
         spark_df = spark.createDataFrame(data)
         spark_df = spark_df.select(col("input"), col("preprocessed_input"), col("output"), col("text"))
@@ -113,7 +83,7 @@ class ModelSetup:
         if training_data_path is None:
             training_data_path = self.training_data_path
 
-        data = self.format_training_data(data=data)
+        data = format_training_data(data=data)
         self.cleaned_data = data
         return data
 

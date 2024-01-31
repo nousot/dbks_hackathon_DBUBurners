@@ -66,7 +66,7 @@ current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 # COMMAND ----------
 
-data = pd.read_csv("arxiv_pdfs_data.csv")
+data = pd.read_csv("osha_dataset.csv")
 data.head(5)
 data["input"] = data["raw"]
 data["output"] = data["structured"]
@@ -81,7 +81,7 @@ training_args_dict = {
         # "per_device_train_batch_size": 1,
         # "gradient_accumulation_steps": 4,
         # "warmup_steps": 0,
-        "max_steps": 5, # default is 300
+        "max_steps": 2, # default is 300, 5 for just testing pipeline throughout
         # "learning_rate": 2e-5,
         # "fp16": True,
         # "logging_steps": 1,
@@ -115,29 +115,4 @@ quick_train.quick_train_model()
 
 # COMMAND ----------
 
-base_model_catalog_name = quick_train.base_model_catalog_name,
-base_model_name = quick_train.base_model_name,
-base_model_version = quick_train.base_model_version ,
-best_model_path = quick_train.best_model_path,
-dbfs_tuned_model_output_dir = None,
-tokenizer = quick_train.tokenizer
-
-# COMMAND ----------
-
-# have to due to space issues
-# not sure why but the variables all get converted to tuples after, so calls below handle that
-# tried to reset the variable names as the first tuple value and it did not work
-del quick_train
-
-# COMMAND ----------
-
-model_postprocessing = ModelPostprocessing(
-    base_model_catalog_name = base_model_catalog_name[0],
-    base_model_name = base_model_name[0],
-    base_model_version = base_model_version[0] ,
-    best_model_path = best_model_path[0],
-    dbfs_tuned_model_output_dir = None,
-    # base_model = self.base_model,
-    tokenizer = tokenizer
-)
-final_tuned_model_path = model_postprocessing.upload_tuned_model_to_dbfs()
+quick_train.data['preprocessed_input'][0]
