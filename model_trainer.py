@@ -2,7 +2,7 @@ import logging
 import logging
 import torch
 import pandas as pd
-from model_setup import ModelSetup
+from utils import count_seq_len
 
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, GPTQConfig, GenerationConfig, Trainer
 # from datasets import Dataset
@@ -131,7 +131,7 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
             "dataset_text_field": "text", # field to tune on
             "tokenizer": self.tokenizer,
             "packing": False, #unsure what this entails
-            "max_seq_length": 4096 # want to automate
+            "max_seq_length": count_seq_len(self.train_dataset) # want to automate
         }
 
         trainer = SFTTrainer(

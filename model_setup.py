@@ -100,14 +100,6 @@ class ModelSetup:
         self.input_example = cleaned_data.head(5)
         return cleaned_data.head(5)
 
-    def count_seq_len(self):
-        example_text = self.raw_data.at[0, 'raw']
-        #rough estimate here
-        encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
-        token_count = len(encoding.encode(example_text))
-        print(f"Input length constrained to: {token_count} tokens.")
-        return token_count
-
     def get_train_test_split(self, cleaned_data: pd.DataFrame = None, test_size: float = 0.3):
         if cleaned_data is None:
             cleaned_data = self.cleaned_data

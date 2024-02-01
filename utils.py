@@ -1,6 +1,7 @@
 import json
 import re
 import pandas as pd
+import tiktoken
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -12,6 +13,14 @@ def remove_escape_chars(input):
         return input
     # return output.encode('ascii', 'ignore').decode('unicode_escape')
     return input.replace("\\", "")
+
+def count_seq_len(data: pd.DataFrame):
+    example_text = data.at[0, 'input']
+    #rough estimate here
+    encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+    token_count = len(encoding.encode(example_text))
+    print(f"Input length constrained to: {token_count} tokens.")
+    return token_count
 
 
 def replace_single_quotes(input_string):
@@ -45,7 +54,7 @@ def replace_single_quotes(input_string):
 def fix_key_names(dict: dict, mappings: dict, direction: str ="schema_to_json"):
     if not dict:
         return None
-        
+
     res = {**dict}
 
     for key, value in mappings.items():
@@ -59,7 +68,7 @@ def fix_key_names(dict: dict, mappings: dict, direction: str ="schema_to_json"):
                 res[key] = res.pop(value)
             except:
                 continue
-                
+
     return res
 
 
@@ -212,7 +221,7 @@ def input_preprocessing(row, model_name, target_schema_str):
             ---
             OUTPUT:
         """
-        
+
     return row
 
 def format_training_data(data: pd.DataFrame, target_mapping: dict[str:str] = {}, model_name: str = "", target_schema_str: str = ""):
