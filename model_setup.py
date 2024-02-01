@@ -153,7 +153,6 @@ class ModelSetup:
         self.cleaned_data = self.create_local_training_data()
         self.signature = self.get_signature()
         self.input_example = self.get_input_example()
-        self.sft_seq_arg  = self.count_seq_len()
         self.train, self.test = self.get_train_test_split()
         self.dataset, self.train_dataset, self.eval_dataset = self.get_all_data_as_datasets()
         self.model, self.tokenizer = self.prepare_model_and_tokenizer()
