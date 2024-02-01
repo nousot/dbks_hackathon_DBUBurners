@@ -14,6 +14,7 @@ from mlflow.models import infer_signature
 
 import torch
 from datetime import datetime
+import tiktoken
 
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, GPTQConfig, GenerationConfig, BitsAndBytesConfig
 from peft import prepare_model_for_kbit_training
@@ -99,6 +100,13 @@ class ModelSetup:
         self.input_example = cleaned_data.head(5)
         return cleaned_data.head(5)
 
+    def count_seq_len(self):
+        example_text = self.get_input_example.at[0, 'input']
+        #rough estimate here
+        encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+        token_count = len(encoding.encode(example_text))
+        return token_count
+
     def get_train_test_split(self, cleaned_data: pd.DataFrame = None, test_size: float = 0.3):
         if cleaned_data is None:
             cleaned_data = self.cleaned_data
@@ -112,21 +120,21 @@ class ModelSetup:
             train = self.train
         if test is None:
             test = self.test
-            
+
         self.dataset = Dataset.from_pandas(cleaned_data)
         self.train_dataset = Dataset.from_pandas(train)
         self.eval_dataset = Dataset.from_pandas(test)
         return self.dataset, self.train_dataset, self.eval_dataset
-    
+
     def prepare_model_and_tokenizer(self, model_name: str = None, tokenizer_path: str = None):
         if model_name is None:
             model_name = self.model_name
-        
+
         if tokenizer_path is None:
             tokenizer_path = self.tokenizer_path
 
         # quantization_config = GPTQConfig(bits=4, disable_exllama=False)
-        
+
         quantization_config = BitsAndBytesConfig(
             load_in_4bit = True, #enables 4bit quantization
             bnb_4bit_use_double_quant = False, #repeats quantization a second time if true
@@ -138,7 +146,7 @@ class ModelSetup:
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
         self.base_model = model
-        
+
         model.config.use_cache = False
         model.config.pretraining_tp = 1
         model.gradient_checkpointing_enable()
@@ -147,12 +155,12 @@ class ModelSetup:
         self.model = model
         self.tokenizer = tokenizer
         return model, tokenizer
-    
+
     def quickstart(self):
         self.cleaned_data = self.create_local_training_data()
         self.signature = self.get_signature()
         self.input_example = self.get_input_example()
+        self.sft_seq_arg  = self.count_seq_len()
         self.train, self.test = self.get_train_test_split()
         self.dataset, self.train_dataset, self.eval_dataset = self.get_all_data_as_datasets()
         self.model, self.tokenizer = self.prepare_model_and_tokenizer()
-        
