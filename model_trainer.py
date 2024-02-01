@@ -2,6 +2,7 @@ import logging
 import logging
 import torch
 import pandas as pd
+from utils import count_seq_len
 
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, GPTQConfig, GenerationConfig, Trainer
 # from datasets import Dataset
@@ -47,7 +48,7 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
         self.lora_config_dict = lora_config_dict
         self.training_args_dict = training_args_dict
         self.model = model
-        
+
         tokenizer.pad_token = tokenizer.eos_token
         tokenizer.padding_side = "right"
         self.tokenizer_specs = {
@@ -56,13 +57,13 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
             "padding_side": tokenizer.padding_side
         }
         self.tokenizer = tokenizer
-        
+
         self.signature = signature
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
         self.mlflow_dir = mlflow_dir
         self.best_model_path = None
-        
+
         for key, value in get_default_LORA_config().items():
             if key not in self.lora_config_dict.keys():
                 self.lora_config_dict[key] = value
@@ -85,7 +86,7 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
                 self.training_args_dict[key] = value
         if 'output_dir' not in self.training_args_dict.keys():
             self.training_args_dict['output_dir'] = "/".join([self.mlflow_dir, "outputs"])
-        
+
         print("Using the following training args:")
         print(str(self.training_args_dict))
 
@@ -117,7 +118,7 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
                 output_dir=self.training_args_dict['output_dir'],
                 optim=self.training_args_dict['optim'],
                 save_strategy=self.training_args_dict['save_strategy'],
-                ddp_find_unused_parameters=self.training_args_dict['ddp_find_unused_parameters'], 
+                ddp_find_unused_parameters=self.training_args_dict['ddp_find_unused_parameters'],
                 push_to_hub=self.training_args_dict["push_to_hub"],
         )
 
@@ -130,7 +131,7 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
             "dataset_text_field": "text", # field to tune on
             "tokenizer": self.tokenizer,
             "packing": False, #unsure what this entails
-            "max_seq_length": 4096 # want to automate
+            "max_seq_length": count_seq_len(self.train_dataset) # want to automate
         }
 
         trainer = SFTTrainer(
