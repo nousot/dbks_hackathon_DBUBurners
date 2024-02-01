@@ -131,7 +131,7 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
             "dataset_text_field": "text", # field to tune on
             "tokenizer": self.tokenizer,
             "packing": False, #unsure what this entails
-            "max_seq_length": ModelSetup.count_seq_len() # want to automate
+            "max_seq_length": 4096 # want to automate
         }
 
         trainer = SFTTrainer(
