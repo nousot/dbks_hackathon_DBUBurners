@@ -253,23 +253,27 @@ class DictEmbedder:
 class ComprehensiveDictionaryComparator:
     def __init__(
             self,
-            weights: Dict[str, float]
+            weights: Dict[str, float],
+            input_schema: Dict[str, str],
+            output_schema: Dict[str, str],
         ):
         self.embedder = DictEmbedder()
         self.jaccard_similarity = weights.get('jaccard_similarity')
         self.value_similarity = weights.get('value_similarity')
         self.textual_similarity_seq = weights.get('textual_similarity_seq')
         self.similarity_score = weights.get('similarity_score')
+        self.input_schema = input_schema
+        self.output_schema = output_schema
 
-    def compare(self, input_schema, output_schema, visualize=True, threshold=0.90):
+    def compare(self, visualize=True, threshold=0.90):
 
-        basic_sims = dict_similarity(input_schema, output_schema)
+        basic_sims = dict_similarity(self.input_schema, self.output_schema)
 
         if visualize:
-            self.embedder.plot_dictionaries(input_schema, output_schema, names=["input_schema", "output_schema"])
-            self.embedder.heatmap(input_schema, output_schema)
+            self.embedder.plot_dictionaries(self.input_schema, self.output_schema, names=["input_schema", "output_schema"])
+            self.embedder.heatmap(self.input_schema, self.output_schema)
 
-        decision_df = self.embedder.decision_matrix(input_schema, output_schema, threshold=threshold)
+        decision_df = self.embedder.decision_matrix(self.input_schema, self.output_schema, threshold=threshold)
 
         results = {
             "basic_similarities": basic_sims,
