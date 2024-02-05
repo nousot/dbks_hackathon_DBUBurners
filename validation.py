@@ -36,7 +36,12 @@ weights = {
     "similarity_score": 0.48, #PCA
 }
 
-comparator = ComprehensiveDictionaryComparator(weights)
+comparator = ComprehensiveDictionaryComparator(
+    weights,
+    input_schema=input_schema,
+    output_schema=output_schema,
+    )
+
 results = comparator.compare(input_schema, output_schema)
 print(results)
 ```
