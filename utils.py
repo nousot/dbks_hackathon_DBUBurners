@@ -15,13 +15,15 @@ def remove_escape_chars(input):
     return input.replace("\\", "")
 
 def count_seq_len(data: pd.DataFrame):
+    print(data)
+    data=pd.DataFrame(data)
     example_text = data.at[0, 'input']
     #rough estimate here
     encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
     token_count = len(encoding.encode(example_text))
     buffered_token_count = 1.1 * float(token_count)
     print(f"Input length constrained to: {token_count} tokens.")
-    return buffered_token_count
+    return int(buffered_token_count)
 
 
 def replace_single_quotes(input_string):

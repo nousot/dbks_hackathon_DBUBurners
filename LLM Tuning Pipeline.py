@@ -1,10 +1,15 @@
 # Databricks notebook source
 ### we'll need to make our own image and throw these in, rest is covered (so far)
-!pip install rich peft optimum trl bitsandbytes accelerate -U transformers
+!pip install rich peft optimum trl bitsandbytes accelerate -U transformers langchain tiktoken
 
 # COMMAND ----------
 
 !pip list
+
+# COMMAND ----------
+
+import datasets
+print(datasets.__version__)
 
 # COMMAND ----------
 
@@ -17,7 +22,7 @@ import logging
 import pandas as pd
 
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, GPTQConfig, GenerationConfig
-# from datasets import Dataset
+
 # from sklearn.model_selection import train_test_split
 
 
@@ -54,6 +59,8 @@ from model_postprocessing import ModelPostprocessing
 from defaults import get_default_LORA_config, get_default_training_args
 from delta.tables import DeltaTable
 from pyspark.sql.functions import col
+
+import tiktoken
 
 logger = logging.getLogger(__name__)
 global_config = None
