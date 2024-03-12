@@ -214,79 +214,105 @@ def parse_output(input: str) -> dict:
     return predicted
 
 
-def input_preprocessing(row, model_name, target_schema_str):
-    if 'inst' in model_name.lower():
-        row['preprocessed_input'] = f"""
-            [INST]
-            Populate a JSON in the JSON_SCHEMA format from the provided TEXT_DATA.
-            ---
-            JSON_SCHEMA: {target_schema_str}
-            ---
-            TEXT_DATA: {row['input']}
-            [\INST]
-        """
-    else:
-        row['preprocessed_input'] = f"""
-            Populate a JSON in the JSON_SCHEMA format from the provided TEXT_DATA.
-            ---
-            JSON_SCHEMA: {target_schema_str}
-            ---
-            TEXT_DATA: {row['input']}
-            ---
-            OUTPUT:
-        """
-        
-    return row
+def input_preprocessing(row, target_schema_str):
+    formatted_input = f"""
+    Populate a JSON in the JSON_SCHEMA format from the provided TEXT_DATA. Only return JSON values, and if you do not find fields simply fill them with 'NA'.
+    ---
+    JSON_SCHEMA: {target_schema_str}
+    ---
+    TEXT_DATA: {row['input']}
+    """
+    return formatted_input
 
-def format_training_data(data: pd.DataFrame, target_mapping: dict[str:str] = {}, model_name: str = "", target_schema_str: str = ""):
-    for index, row in data.iterrows():
 
-        # Update the row with input preprocessing and concatenate text
-        row = input_preprocessing(row, model_name, target_schema_str)
-        data.at[index, 'preprocessed_input'] = row['preprocessed_input']
+def format_training_data(tokenizer, data: pd.DataFrame, output_col: str, target_mapping: dict[str:str] = {}, target_schema: dict[str:str] = None):
+    data = data.map(lambda x: {"cleaned_output": re.sub(" 'S", "'S", x[output_col])})
+    data = data.map(lambda x: {"cleaned_output": re.sub(" nan,", '"None",', x["cleaned_output"])})
+    data = data.map(lambda x: {"cleaned_output": re.sub(r"(?<!\w)'(?!')|(?<!')'(?!\w)", '"', x["cleaned_output"])})
+    data = data.map(lambda x: {"cleaned_output": re.sub(r"\n", ' ', x["cleaned_output"])})
+    data = data.map(lambda x: {"cleaned_output": re.sub(r"/", ' or ', x["cleaned_output"])})
+    data = data.map(lambda x: {"cleaned_output": re.sub(r'""', '"', x["cleaned_output"])})
+    try:
+        data = data.map(lambda x: {"cleaned_output": json.loads(x["cleaned_output"])
+        })
+    except Exception:
+        print("We have some robust text handling, but please ensure that your data is json parseable (works in json.loads)")
 
-        if "output" in data.columns:
+    data = data.map(lambda x: {"cleaned_output": fix_key_names(dict=x["cleaned_output"], mappings=target_mapping, direction='json_to_schema')})
 
-            row_output_string = str(row['output'])
+    if target_schema is None:
+        target_schema = {}
+        for key, value in data["cleaned_output"].items():
+            target_schema[key] = str(type(value).__name__)
 
-            ### this needs a try except block and some cleaning maybe
-            modified_string = re.sub(" 'S", "'S", row_output_string)
-            modified_string = re.sub(" nan,", '"None",', modified_string)
-            modified_string = re.sub(r"(?<!\w)'(?!')|(?<!')'(?!\w)", '"', modified_string)
-            modified_string = re.sub(r"\n", ' ', modified_string)
-            modified_string = re.sub(r"/", ' or ', modified_string)
-            modified_string = re.sub(r'""', '"', modified_string)
+    target_schema_str = str(target_schema)
 
-            try:
-                temp_row_output = json.loads(modified_string)  # Modify data directly
-            except Exception:
-                print("Check your data at the following index, as it is not JSON parsable")
-                print(index)
-                break
-            temp_row_output = fix_key_names(dict=temp_row_output, mappings=target_mapping, direction='json_to_schema')
-            target_schema_dict = {}
-            for key, value in temp_row_output.items():
-                target_schema_dict[key] = str(type(value).__name__)
+    data = data.map(lambda x: {"formatted_input": input_preprocessing(x, target_schema_str=target_schema_str)})
+    data = data.map(lambda x: {"chat": [
+        {"role": "user", "content": x['formatted_input']},
+        {"role": "assistant", "content": x['cleaned_output']}
+        ]}
+    )
 
-            target_schema_str = str(target_schema_dict)
+    data = data.map(lambda x: {"model_ready": tokenizer.apply_chat_template(x["chat"], tokenize=False, add_generation_prompt=False)})
+
+
+    # for index, row in data.iterrows():
+
+    #     # Update the row with input preprocessing and concatenate text
+    #     dataset = dataset.map(lambda x: {"formatted_chat": tokenizer.apply_chat_template(x["chat"], tokenize=False, add_generation_prompt=False)})
+    #     row = input_preprocessing(row, model_name, target_schema_str)
+    #     data.at[index, 'preprocessed_input'] = row['preprocessed_input']
+
+        # if "output" in data.columns:
+
+        #     row_output_string = str(row['output'])
+
+        #     ### this needs a try except block and some cleaning maybe
+        #     modified_string = re.sub(" 'S", "'S", row_output_string)
+        #     modified_string = re.sub(" nan,", '"None",', modified_string)
+        #     modified_string = re.sub(r"(?<!\w)'(?!')|(?<!')'(?!\w)", '"', modified_string)
+        #     modified_string = re.sub(r"\n", ' ', modified_string)
+        #     modified_string = re.sub(r"/", ' or ', modified_string)
+        #     modified_string = re.sub(r'""', '"', modified_string)
+
+        #     try:
+        #         temp_row_output = json.loads(modified_string)  # Modify data directly
+        #     except Exception:
+        #         print("Check your data at the following index, as it is not JSON parsable")
+        #         print(index)
+        #         break
+        #     temp_row_output = fix_key_names(dict=temp_row_output, mappings=target_mapping, direction='json_to_schema')
+        #     target_schema_dict = {}
+        #     for key, value in temp_row_output.items():
+        #         target_schema_dict[key] = str(type(value).__name__)
+
+        #     target_schema_str = str(target_schema_dict)
 
             # Update the row with input preprocessing and concatenate text
-            row = input_preprocessing(row, model_name, target_schema_str)
-            data.at[index, 'preprocessed_input'] = row['preprocessed_input']
+            # row = input_preprocessing(row, model_name, target_schema_str)
+            # data.at[index, 'preprocessed_input'] = row['preprocessed_input']
 
-            # Assign the modified output as a string
-            data.at[index, 'output'] = str(temp_row_output)
-            row['output'] = str(temp_row_output)
+            # # Assign the modified output as a string
+            # data.at[index, 'output'] = str(temp_row_output)
+            # row['output'] = str(temp_row_output)
 
-            # data.at[index, 'text'] = f"""
-            # {row['preprocessed_input']}
-            # {row['output']}
+            # chat = [
+            #     {"role": "user", "content": row['preprocessed_input']},
+            #     {"role": "assistent", "content": row['output']}
+            # ]
+
+            # data.at[index, 'model_ready']
+
+            # # data.at[index, 'text'] = f"""
+            # # {row['preprocessed_input']}
+            # # {row['output']}
+            # # """
+            # # data.at[index, 'text'] = str(row['preprocessed_input'])
+            # # data.at[index, 'label'] = str(row['output'])
+            # data.at[index, 'model_ready'] =f"""
+            #     {str(row['preprocessed_input'])}
+            #     {str(row['output'])}
             # """
-            data.at[index, 'text'] = str(row['preprocessed_input'])
-            data.at[index, 'label'] = str(row['output'])
-            data.at[index, 'model_ready'] =f"""
-                {str(row['preprocessed_input'])}
-                {str(row['output'])}
-            """
 
     return data

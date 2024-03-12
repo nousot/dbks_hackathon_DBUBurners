@@ -57,17 +57,18 @@ class ModelSetup:
         self.dataset = None
         self.train_dataset = None
         self.eval_dataset = None
+        self.target_mapping = None
 
         self.model = None
         self.tokenizer = None
 
-    def create_training_delta_table(self, data: pd.DataFrame = None, target_mapping: dict[str:str] = {}, training_data_path: str = None):
+    def create_training_delta_table(self, data: pd.DataFrame = None, target_mapping: dict[str:str] = {}, training_data_path: str = None, tokenizer = None):
         if data is None:
             data = self.raw_data
         if training_data_path is None:
             training_data_path = self.training_data_path
 
-        data = format_training_data(data=data, model_name = self.model_name)
+        data = format_training_data(data=data, tokenizer=self.tokenizer, output_col="output", target_mapping=self.target_mapping)
         spark = SparkSession.builder.appName("ModelSetup").getOrCreate()
         spark_df = spark.createDataFrame(data)
         spark_df = spark_df.select(col("input"), col("preprocessed_input"), col("output"), col("text"))
@@ -76,13 +77,13 @@ class ModelSetup:
         self.cleaned_data = data
         return data
 
-    def create_local_training_data(self, data: pd.DataFrame = None, target_mapping: dict[str:str] = {}, training_data_path: str = None):
+    def create_local_training_data(self, data: pd.DataFrame = None, target_mapping: dict[str:str] = {}, training_data_path: str = None, tokenizer = None):
         if data is None:
             data = self.raw_data
         if training_data_path is None:
             training_data_path = self.training_data_path
 
-        data = format_training_data(data=data, model_name = self.model_name)
+        data = format_training_data(data=data, tokenizer=self.tokenizer, output_col="output", target_mapping=self.target_mapping)
         self.cleaned_data = data
         return data
 
@@ -169,10 +170,10 @@ class ModelSetup:
         return self.model, self.tokenizer
     
     def quickstart(self):
+        self.model, self.tokenizer = self.prepare_model_and_tokenizer()
         self.cleaned_data = self.create_local_training_data()
         self.signature = self.get_signature()
         self.input_example = self.get_input_example()
         self.train, self.test = self.get_train_test_split()
         self.dataset, self.train_dataset, self.eval_dataset = self.get_all_data_as_datasets()
-        self.model, self.tokenizer = self.prepare_model_and_tokenizer()
         

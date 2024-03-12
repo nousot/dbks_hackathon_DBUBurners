@@ -50,20 +50,40 @@ class TunedModel:
         # adapter_local_path = os.path.join(path, "adapter")
         # shutil.copytree(adapter_dbfs_path, adapter_local_path)
 
+        SUPPORTS_BFLOAT16 = torch.cuda.is_bf16_supported()
+        dtype = torch.float16 if not SUPPORTS_BFLOAT16 else torch.bfloat16
+        if dtype == torch.bfloat16 and not SUPPORTS_BFLOAT16:
+            print("Device does not support bfloat16. Will change to float16.")
+            dtype = torch.float16
 
         quantization_config = BitsAndBytesConfig(
             load_in_4bit = True, #enables 4bit quantization
             bnb_4bit_use_double_quant = False, #repeats quantization a second time if true
             bnb_4bit_quant_type = 'nf4', #`fp4` or `nf4`
-            bnb_4bit_compute_dtype = torch.bfloat16, #fp dtype, can be changed for speed up
+            bnb_4bit_compute_dtype = dtype, #fp dtype, can be changed for speed up
         )
 
-        model_to_merge = PeftModel.from_pretrained(AutoModelForCausalLM.from_pretrained(model_path, quantization_config=quantization_config), adapter_dbfs_path)
+        # straight out of unsloth
+        quantization_config = BitsAndBytesConfig(
+            load_in_4bit              = True,
+            bnb_4bit_use_double_quant = True,
+            bnb_4bit_quant_type       = "nf4",
+            bnb_4bit_compute_dtype    = dtype,
+        )
+
+        model_to_merge = PeftModel.from_pretrained(AutoModelForCausalLM.from_pretrained(model_path, quantization_config=quantization_config, device_map="auto", torch_dtype=dtype, trust_remote_code=True), adapter_dbfs_path)
         
         self.prod_model = model_to_merge.merge_and_unload()
 
         # saves space
         del model_to_merge
+
+        # self.prod_model = AutoModelForCausalLM.from_pretrained(model_path, quantization_config=quantization_config, device_map="auto", torch_dtype=dtype, trust_remote_code=True)
+
+        # self.prod_model = PeftModel.from_pretrained(self.prod_model, adapter_dbfs_path)
+        
+        # self.prod_model = self.prod_model.merge_and_unload()
+
 
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, device_map="auto")
         tokenizer.pad_token = tokenizer.eos_token
@@ -73,9 +93,7 @@ class TunedModel:
     def generate(self, data: pd.DataFrame, target_schema: str, gpu_or_cpu: str = None, generation_config_args: dict = {}):
         if 'preprocessed_input' not in data.columns:
             target_schema_str = str(target_schema)
-            data = format_training_data(data=data, target_schema_str=target_schema_str)
-
-        data = data["input", "output", "preprocessed_input", "text"]
+            data = format_training_data(data=data, target_schema_str=target_schema_str, model_name=self.base_model_name)
 
         for key, value in get_default_generation_config().items():
             if key not in generation_config_args.keys():

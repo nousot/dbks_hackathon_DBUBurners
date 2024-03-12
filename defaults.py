@@ -13,6 +13,7 @@ def get_default_training_args():
         "gradient_accumulation_steps": 4,
         "warmup_steps": 0,
         "max_steps": 300,
+        "num_train_epochs": 1,
         "learning_rate": 2e-5,
         "fp16": True,
         "logging_steps": 1,

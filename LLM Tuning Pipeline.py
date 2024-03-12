@@ -73,10 +73,11 @@ training_args_dict = {
         "per_device_train_batch_size": 1,
         # "gradient_accumulation_steps": 4,
         # "warmup_steps": 0,
-        "max_steps": 5, # default is 300, 5 for just testing pipeline throughout
+        "max_steps": 50, # default is 300, 5 for just testing pipeline throughout
+        "num_train_epochs": 10,
         "learning_rate": 4e-4, #4e-4 works well for mistral
         # "fp16": True,
-        "logging_steps": 1,
+        "logging_steps": 10,
         # "optim": "paged_adamw_8bit",
         # "save_strategy": "epoch",
         # "ddp_find_unused_parameters": False # this cannot be true for T4, crashes otherwise
@@ -98,8 +99,6 @@ lora_config_dict = {
 # model_name = "dolly_v2_12b"
 catalog_name = "databricks_mistral_models"
 model_name = "mistral_7b_instruct_v0_2"
-# 14.5 GB available, only uses 9.7 GB but still crashes
-# anything but dolly returns "Error while serializing: IoError(Os { code: 27, kind: FileTooLarge, message: "File too large" })"
 
 version = 1
 quick_train = QuickTrain(

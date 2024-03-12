@@ -98,7 +98,6 @@ class QuickTrain:
             raw_data=self.data
         )
         model_setup.quickstart()
-        # self.base_model = model_setup.base_model
         self.tokenizer = model_setup.tokenizer
 
         self.run_training(model_setup = model_setup, base_model_path = base_model_path)
