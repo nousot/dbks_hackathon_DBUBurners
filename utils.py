@@ -11,19 +11,30 @@ from difflib import SequenceMatcher
 def remove_escape_chars(input):
     if not input:
         return input
-    # return output.encode('ascii', 'ignore').decode('unicode_escape')
     return input.replace("\\", "")
 
+
 def count_seq_len(data: pd.DataFrame):
-    print(data)
     data=pd.DataFrame(data)
-    example_text = data.at[0, 'input']
+    
+    col_name = 'input'
+    if 'text' in data.columns:
+        col_name = 'text'
+    if 'model_ready' in data.columns:
+        col_name = 'model_ready'
+    idx = data[col_name].str.len().idxmax()
+    max_length_value = data.loc[idx, col_name]
+
     #rough estimate here
     encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
-    token_count = len(encoding.encode(example_text))
-    buffered_token_count = 1.1 * float(token_count)
+    token_count = len(encoding.encode(max_length_value))
+    buffered_token_count = 1.2 * float(token_count)
+    buffered_token_count = buffered_token_count if buffered_token_count < 2048 else 2048
     print(f"Input length constrained to: {token_count} tokens.")
+
     return int(buffered_token_count)
+
+
 
 
 def replace_single_quotes(input_string):
@@ -57,7 +68,7 @@ def replace_single_quotes(input_string):
 def fix_key_names(dict: dict, mappings: dict, direction: str ="schema_to_json"):
     if not dict:
         return None
-
+        
     res = {**dict}
 
     for key, value in mappings.items():
@@ -71,7 +82,7 @@ def fix_key_names(dict: dict, mappings: dict, direction: str ="schema_to_json"):
                 res[key] = res.pop(value)
             except:
                 continue
-
+                
     return res
 
 
@@ -204,7 +215,7 @@ def parse_output(input: str) -> dict:
 
 
 def input_preprocessing(row, model_name, target_schema_str):
-    if 'instruct' in model_name.lower():
+    if 'inst' in model_name.lower():
         row['preprocessed_input'] = f"""
             [INST]
             Populate a JSON in the JSON_SCHEMA format from the provided TEXT_DATA.
@@ -224,7 +235,7 @@ def input_preprocessing(row, model_name, target_schema_str):
             ---
             OUTPUT:
         """
-
+        
     return row
 
 def format_training_data(data: pd.DataFrame, target_mapping: dict[str:str] = {}, model_name: str = "", target_schema_str: str = ""):
@@ -267,9 +278,15 @@ def format_training_data(data: pd.DataFrame, target_mapping: dict[str:str] = {},
             data.at[index, 'output'] = str(temp_row_output)
             row['output'] = str(temp_row_output)
 
-            data.at[index, 'text'] = f"""
-            {row['preprocessed_input']}
-            {row['output']}
+            # data.at[index, 'text'] = f"""
+            # {row['preprocessed_input']}
+            # {row['output']}
+            # """
+            data.at[index, 'text'] = str(row['preprocessed_input'])
+            data.at[index, 'label'] = str(row['output'])
+            data.at[index, 'model_ready'] =f"""
+                {str(row['preprocessed_input'])}
+                {str(row['output'])}
             """
 
     return data

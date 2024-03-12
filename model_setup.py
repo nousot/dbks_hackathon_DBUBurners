@@ -14,7 +14,6 @@ from mlflow.models import infer_signature
 
 import torch
 from datetime import datetime
-import tiktoken
 
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, GPTQConfig, GenerationConfig, BitsAndBytesConfig
 from peft import prepare_model_for_kbit_training
@@ -59,7 +58,6 @@ class ModelSetup:
         self.train_dataset = None
         self.eval_dataset = None
 
-        self.base_model = None
         self.model = None
         self.tokenizer = None
 
@@ -69,7 +67,7 @@ class ModelSetup:
         if training_data_path is None:
             training_data_path = self.training_data_path
 
-        data = format_training_data(data=data)
+        data = format_training_data(data=data, model_name = self.model_name)
         spark = SparkSession.builder.appName("ModelSetup").getOrCreate()
         spark_df = spark.createDataFrame(data)
         spark_df = spark_df.select(col("input"), col("preprocessed_input"), col("output"), col("text"))
@@ -84,7 +82,7 @@ class ModelSetup:
         if training_data_path is None:
             training_data_path = self.training_data_path
 
-        data = format_training_data(data=data)
+        data = format_training_data(data=data, model_name = self.model_name)
         self.cleaned_data = data
         return data
 
@@ -113,33 +111,49 @@ class ModelSetup:
             train = self.train
         if test is None:
             test = self.test
-
+            
         self.dataset = Dataset.from_pandas(cleaned_data)
         self.train_dataset = Dataset.from_pandas(train)
         self.eval_dataset = Dataset.from_pandas(test)
         return self.dataset, self.train_dataset, self.eval_dataset
-
+    
     def prepare_model_and_tokenizer(self, model_name: str = None, tokenizer_path: str = None):
         if model_name is None:
             model_name = self.model_name
-
+        
         if tokenizer_path is None:
             tokenizer_path = self.tokenizer_path
 
-        # quantization_config = GPTQConfig(bits=4, disable_exllama=False)
+        SUPPORTS_BFLOAT16 = torch.cuda.is_bf16_supported()
+        dtype = torch.float16 if not SUPPORTS_BFLOAT16 else torch.bfloat16
+        if dtype == torch.bfloat16 and not SUPPORTS_BFLOAT16:
+            print("Device does not support bfloat16. Will change to float16.")
+            dtype = torch.float16
 
         quantization_config = BitsAndBytesConfig(
             load_in_4bit = True, #enables 4bit quantization
             bnb_4bit_use_double_quant = False, #repeats quantization a second time if true
             bnb_4bit_quant_type = 'nf4', #`fp4` or `nf4`
-            bnb_4bit_compute_dtype = torch.bfloat16, #fp dtype, can be changed for speed up
+            bnb_4bit_compute_dtype = dtype, #fp dtype, can be changed for speed up
         )
 
-        model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True, quantization_config=quantization_config, device_map="auto", load_in_4bit=True)
-        tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+        # straight out of unsloth
+        quantization_config = BitsAndBytesConfig(
+            load_in_4bit              = True,
+            bnb_4bit_use_double_quant = True,
+            bnb_4bit_quant_type       = "nf4",
+            bnb_4bit_compute_dtype    = dtype,
+        )
 
-        self.base_model = model
-
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            trust_remote_code=True,
+            torch_dtype=dtype,
+            quantization_config=quantization_config,
+            device_map="auto"
+        )
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, trust_remote_code=True)
+        
         model.config.use_cache = False
         model.config.pretraining_tp = 1
         model.gradient_checkpointing_enable()
@@ -147,8 +161,13 @@ class ModelSetup:
 
         self.model = model
         self.tokenizer = tokenizer
-        return model, tokenizer
 
+        # maximizing space
+        del model
+        del tokenizer
+
+        return self.model, self.tokenizer
+    
     def quickstart(self):
         self.cleaned_data = self.create_local_training_data()
         self.signature = self.get_signature()
@@ -156,3 +175,4 @@ class ModelSetup:
         self.train, self.test = self.get_train_test_split()
         self.dataset, self.train_dataset, self.eval_dataset = self.get_all_data_as_datasets()
         self.model, self.tokenizer = self.prepare_model_and_tokenizer()
+        

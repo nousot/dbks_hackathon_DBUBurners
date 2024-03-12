@@ -4,7 +4,7 @@ def get_default_LORA_config():
         "lora_alpha": 32, # alpha scaling
         "lora_dropout": 0.05,
         "bias": "none",
-        "task_type": "FEATURE_EXTRACTION",
+        "task_type": "CAUSAL_LM",
     }
 
 def get_default_training_args():

@@ -2,12 +2,9 @@ import logging
 import logging
 import torch
 import pandas as pd
-from utils import count_seq_len
 
-from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, GPTQConfig, GenerationConfig, Trainer
-# from datasets import Dataset
+from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, GPTQConfig, GenerationConfig, Trainer, DataCollatorWithPadding
 import torch
-# from sklearn.model_selection import train_test_split
 
 
 from time import perf_counter
@@ -23,12 +20,14 @@ from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, AutoPeftModelForCausalLM
 
-from trl import SFTTrainer
+from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 
-from utils import fix_key_names, input_preprocessing
+from utils import fix_key_names, input_preprocessing, count_seq_len
 
 from model_setup import ModelSetup
 import re
+
+from accelerate import Accelerator
 
 
 import mlflow
@@ -48,22 +47,26 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
         self.lora_config_dict = lora_config_dict
         self.training_args_dict = training_args_dict
         self.model = model
-
+        
+        # tokenizer.pad_token = tokenizer.eos_token
+        # tokenizer.padding_side = "right"
+        tokenizer.padding_side = 'right'
         tokenizer.pad_token = tokenizer.eos_token
-        tokenizer.padding_side = "right"
-        self.tokenizer_specs = {
-            "pad_token": tokenizer.pad_token,
-            "eos_token": tokenizer.eos_token,
-            "padding_side": tokenizer.padding_side
-        }
+        tokenizer.add_eos_token = True
+        tokenizer.add_bos_token = tokenizer.add_eos_token
+        # self.tokenizer_specs = {
+        #     "pad_token": tokenizer.pad_token,
+        #     "eos_token": tokenizer.eos_token,
+        #     "padding_side": tokenizer.padding_side
+        # }
         self.tokenizer = tokenizer
-
+        
         self.signature = signature
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
         self.mlflow_dir = mlflow_dir
         self.best_model_path = None
-
+        
         for key, value in get_default_LORA_config().items():
             if key not in self.lora_config_dict.keys():
                 self.lora_config_dict[key] = value
@@ -86,7 +89,7 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
                 self.training_args_dict[key] = value
         if 'output_dir' not in self.training_args_dict.keys():
             self.training_args_dict['output_dir'] = "/".join([self.mlflow_dir, "outputs"])
-
+        
         print("Using the following training args:")
         print(str(self.training_args_dict))
 
@@ -118,9 +121,24 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
                 output_dir=self.training_args_dict['output_dir'],
                 optim=self.training_args_dict['optim'],
                 save_strategy=self.training_args_dict['save_strategy'],
-                ddp_find_unused_parameters=self.training_args_dict['ddp_find_unused_parameters'],
+                eval_strategry = self.training_args_dict['save_strategy'],
+                ddp_find_unused_parameters=self.training_args_dict['ddp_find_unused_parameters'], 
                 push_to_hub=self.training_args_dict["push_to_hub"],
+                # push_to_hub=True,
+                # push_to_hub_model_id="tuned_mistral_test",
+                # push_to_hub_organization="nousot",
+                # push_to_hub_token="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", # DO NOT COMMIT
         )
+
+        EOS_TOKEN = self.tokenizer.eos_token
+        BOS_TOKEN = self.tokenizer.bos_token
+
+        def formatting_prompts_func(data):
+            output_texts = []
+            for i in range(len(data['text'])):
+                text = f"{BOS_TOKEN} {data['text'][i]}\n {data['label'][i]} {EOS_TOKEN}"
+                output_texts.append(text)
+            return output_texts
 
         sft_trainer_args = {
             "model": model,
@@ -128,11 +146,18 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
             "train_dataset": self.train_dataset,
             "eval_dataset": self.eval_dataset,
             "peft_config": config,
-            "dataset_text_field": "text", # field to tune on
+            "dataset_text_field": "model_ready", # field to tune on
             "tokenizer": self.tokenizer,
             "packing": False, #unsure what this entails
-            "max_seq_length": count_seq_len(self.train_dataset) # want to automate
+            "max_seq_length": count_seq_len(self.train_dataset),
+
         }
+
+        template_val = "OUTPUT:"
+        if "inst" in self.mlflow_dir.lower():
+            template_val = "[\INST]"
+            
+        data_collator = DataCollatorForCompletionOnlyLM(response_template=template_val, tokenizer=self.tokenizer, mlm=False)
 
         trainer = SFTTrainer(
             model=sft_trainer_args["model"],
@@ -142,16 +167,30 @@ class ModelTrainer(mlflow.pyfunc.PythonModel):
             peft_config=sft_trainer_args["peft_config"],
             dataset_text_field=sft_trainer_args["dataset_text_field"],
             tokenizer=sft_trainer_args["tokenizer"],
-            packing=sft_trainer_args["packing"],
-            max_seq_length=sft_trainer_args["max_seq_length"],)
+            packing=False,
+            max_seq_length=sft_trainer_args["max_seq_length"],
+            formatting_func=formatting_prompts_func,
+            data_collator=data_collator
+            )
 
-
-        start_time = perf_counter()
-        trainer.train()
         best_model_path = f"{self.training_args_dict['output_dir']}/tuned_model"
         self.best_model_path = best_model_path
 
-        trainer.save_model(best_model_path) #save best model
+        start_time = perf_counter()
+
+        try:
+            trainer.train()
+
+        except Exception as e:
+            print("ERROR")
+            print(e)
+            gpu_stats = torch.cuda.get_device_properties(0)
+            start_gpu_memory = round(torch.cuda.max_memory_reserved() / 1024 / 1024 / 1024, 3)
+            max_memory = round(gpu_stats.total_memory / 1024 / 1024 / 1024, 3)
+            print(f"GPU = {gpu_stats.name}. Max memory = {max_memory} GB.")
+            print(f"{start_gpu_memory} GB of memory reserved.")
+            trainer.save_model(best_model_path) #save best model
+
         end_time = perf_counter()
         output_time = end_time - start_time
         output_time = output_time / 60

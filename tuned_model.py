@@ -58,7 +58,7 @@ class TunedModel:
             bnb_4bit_compute_dtype = torch.bfloat16, #fp dtype, can be changed for speed up
         )
 
-        model_to_merge = PeftModel.from_pretrained(AutoModelForCausalLM.from_pretrained(model_path, quantization_config=quantization_config, load_in_4bit=True), adapter_dbfs_path)
+        model_to_merge = PeftModel.from_pretrained(AutoModelForCausalLM.from_pretrained(model_path, quantization_config=quantization_config), adapter_dbfs_path)
         
         self.prod_model = model_to_merge.merge_and_unload()
 
@@ -74,7 +74,9 @@ class TunedModel:
         if 'preprocessed_input' not in data.columns:
             target_schema_str = str(target_schema)
             data = format_training_data(data=data, target_schema_str=target_schema_str)
-        
+
+        data = data["input", "output", "preprocessed_input", "text"]
+
         for key, value in get_default_generation_config().items():
             if key not in generation_config_args.keys():
                 generation_config_args[key] = value

@@ -21,16 +21,18 @@ class QuickTrain:
         self.base_model_catalog_name = base_model_catalog_name
         self.base_model_name = base_model_name
         self.base_model_version = base_model_version
+        self.now = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+
         if dbfs_tuned_adapter_dir is None:
-            now = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            self.dbfs_tuned_adapter_dir = f"/dbfs/tuned_adapters/{self.base_model_name}/{now}/"
+            self.dbfs_tuned_adapter_dir = f"/dbfs/tuned_adapters/{self.base_model_name}/{self.now}/"
         else:
             self.dbfs_tuned_adapter_dir = dbfs_tuned_adapter_dir
         self.data = data
         self.best_adapter_path = None
         self.lora_config_dict = lora_config_dict
         self.training_args_dict = training_args_dict
-        self.base_model = None
+        # self.base_model = None
 
     def get_model_from_catalog(self, catalog_name: str, model_name: str, version: int):
         mlflow.set_registry_uri('databricks-uc')
@@ -47,10 +49,12 @@ class QuickTrain:
 
     def run_training(self, model_setup: ModelSetup, base_model_path: str):
 
-        model_setup.mlflow_dir = f'mlflowruns/training{base_model_path}{model_setup.mlflow_experiment_id}'
-        mlflow.set_tracking_uri(model_setup.mlflow_dir)
-        
-        with mlflow.start_run() as run:
+        # model_setup.mlflow_dir = f'mlflowruns/training{base_model_path}{model_setup.mlflow_experiment_id}'
+        # mlflow.set_tracking_uri(model_setup.mlflow_dir)
+
+        # every time I set a custom run_id it would not go through, so turning off for now
+        # with mlflow.start_run(base_model_name):
+        with mlflow.start_run():
             training_model = ModelTrainer(
                 model=model_setup.model,
                 tokenizer=model_setup.tokenizer,
@@ -68,8 +72,6 @@ class QuickTrain:
 
             training_model, output_time, best_adapter_path = training_model.train()
             self.best_adapter_path = best_adapter_path
-
-            mlflow.log_param("output_time", output_time)
 
     def upload_adapter_to_dbfs(self, best_adapter_path: str = None, dbfs_tuned_adapter_dir: str = None):
         if best_adapter_path is None:
@@ -96,7 +98,7 @@ class QuickTrain:
             raw_data=self.data
         )
         model_setup.quickstart()
-        self.base_model = model_setup.base_model
+        # self.base_model = model_setup.base_model
         self.tokenizer = model_setup.tokenizer
 
         self.run_training(model_setup = model_setup, base_model_path = base_model_path)
